@@ -1,0 +1,16 @@
+logging:
+  config: classpath:logback-spring.xml
+  level:
+    root: INFO
+    com.archivage: INFO
+
+# Aucune valeur par défaut : définir JWT_SECRET dans l’environnement (Docker, systemd, etc.).
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
