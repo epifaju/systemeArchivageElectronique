@@ -10,6 +10,7 @@ import com.archivage.document.dto.UploadRequest;
 import com.archivage.document.entity.Document;
 import com.archivage.document.entity.DocumentTag;
 import com.archivage.document.mapper.DocumentMapper;
+import com.archivage.document.zip.ZipImportExtractor;
 import com.archivage.document.repository.DocumentRepository;
 import com.archivage.metadata.entity.DocumentTypeEntity;
 import com.archivage.metadata.repository.DocumentTypeRepository;
@@ -32,7 +33,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.io.ByteArrayInputStream;
 import java.util.Optional;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -67,6 +67,23 @@ public class DocumentUploadService {
         } catch (IOException e) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "FILE_READ_ERROR", "Lecture du fichier impossible");
         }
+        User uploader = userRepository.getReferenceById(principal.getUser().getId());
+        return ingestDocument(
+                content,
+                Optional.ofNullable(file.getOriginalFilename()).orElse("document.bin"),
+                request,
+                uploader
+        );
+    }
+
+    /**
+     * Import de documents à partir de contenu binaire (upload, ZIP, dossier surveillé).
+     */
+    @Transactional
+    public DocumentDto ingestDocument(byte[] content, String originalFilename, UploadRequest request, User uploader) {
+        if (content == null || content.length == 0) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "FILE_REQUIRED", "Fichier vide");
+        }
         String detected = fileStorageService.detectMimeType(content);
         validateMime(detected);
 
@@ -94,8 +111,6 @@ public class DocumentUploadService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "TYPE_INACTIVE", "Type documentaire inactif");
         }
 
-        User uploader = userRepository.getReferenceById(principal.getUser().getId());
-
         Document doc = Document.builder()
                 .title(request.title())
                 .documentType(docType)
@@ -108,14 +123,14 @@ public class DocumentUploadService {
                 .author(request.author())
                 .notes(request.notes())
                 .uploadedBy(uploader)
-                .department(resolveDepartment(request.departmentId(), principal.getUser().getId()))
+                .department(resolveDepartment(request.departmentId(), uploader.getId()))
                 .tags(new ArrayList<>())
                 .build();
 
         applyTags(doc, request.tags());
         doc = documentRepository.save(doc);
 
-        String safeName = sanitizeFileName(Optional.ofNullable(file.getOriginalFilename()).orElse("document.bin"));
+        String safeName = sanitizeFileName(Optional.ofNullable(originalFilename).orElse("document.bin"));
         String path;
         try {
             path = fileStorageService.store(content, doc.getUuid(), safeName);
@@ -125,7 +140,7 @@ public class DocumentUploadService {
 
         doc.setOriginalPath(path);
         doc.setMimeType(detected);
-        doc.setFileSize(file.getSize());
+        doc.setFileSize((long) content.length);
         doc = documentRepository.save(doc);
 
         ocrJobService.enqueue(doc.getId());
@@ -134,11 +149,51 @@ public class DocumentUploadService {
         return documentMapper.toDto(reloadForDto(doc.getId()));
     }
 
+    /**
+     * Décompresse une archive ZIP et importe chaque fichier avec les métadonnées modèle (titres dérivés comme import-batch).
+     */
+    @Transactional
+    public List<DocumentDto> importZip(MultipartFile zipFile, UploadRequest template, UserPrincipal principal) {
+        if (zipFile == null || zipFile.isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "ZIP_REQUIRED", "Archive ZIP requise");
+        }
+        byte[] zipBytes;
+        try {
+            zipBytes = zipFile.getBytes();
+        } catch (IOException e) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "ZIP_READ_ERROR", "Lecture de l’archive impossible");
+        }
+        List<ZipImportExtractor.ExtractedEntry> entries = ZipImportExtractor.extract(zipBytes);
+        User uploader = userRepository.getReferenceById(principal.getUser().getId());
+        List<DocumentDto> out = new ArrayList<>();
+        for (ZipImportExtractor.ExtractedEntry e : entries) {
+            String title = entries.size() == 1
+                    ? template.title()
+                    : template.title() + " — " + sanitizeFileName(e.entryName());
+            UploadRequest req = new UploadRequest(
+                    title,
+                    template.documentTypeId(),
+                    template.folderNumber(),
+                    template.documentDate(),
+                    template.language(),
+                    template.confidentialityLevel(),
+                    template.departmentId(),
+                    template.externalReference(),
+                    template.author(),
+                    template.notes(),
+                    template.tags()
+            );
+            out.add(ingestDocument(e.content(), e.entryName(), req, uploader));
+        }
+        return out;
+    }
+
     @Transactional
     public List<DocumentDto> importBatch(List<MultipartFile> files, UploadRequest template, UserPrincipal principal) {
         if (files == null || files.isEmpty()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "FILES_REQUIRED", "Au moins un fichier requis");
         }
+        User uploader = userRepository.getReferenceById(principal.getUser().getId());
         List<DocumentDto> out = new ArrayList<>();
         int i = 0;
         for (MultipartFile f : files) {
@@ -158,7 +213,13 @@ public class DocumentUploadService {
                     template.notes(),
                     template.tags()
             );
-            out.add(upload(f, req, principal));
+            byte[] content;
+            try {
+                content = f.getBytes();
+            } catch (IOException e) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "FILE_READ_ERROR", "Lecture du fichier impossible");
+            }
+            out.add(ingestDocument(content, Optional.ofNullable(f.getOriginalFilename()).orElse("document.bin"), req, uploader));
         }
         return out;
     }

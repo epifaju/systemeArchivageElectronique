@@ -63,6 +63,17 @@ app:
     auth:
       max-requests: ${AUTH_RATE_LIMIT_MAX:30}
       window-seconds: ${AUTH_RATE_LIMIT_WINDOW_SECONDS:60}
+  ingest:
+    watch:
+      enabled: ${APP_INGEST_WATCH_ENABLED:false}
+      directory: ${APP_INGEST_WATCH_DIRECTORY:./data/watch-incoming}
+      interval-ms: ${APP_INGEST_WATCH_INTERVAL_MS:60000}
+      user-id: ${APP_INGEST_WATCH_USER_ID:1}
+      document-type-id: ${APP_INGEST_WATCH_DOCUMENT_TYPE_ID:1}
+      folder-number: ${APP_INGEST_WATCH_FOLDER_NUMBER:INBOX}
+      title-prefix: ${APP_INGEST_WATCH_TITLE_PREFIX:Import automatique}
+      language: ${APP_INGEST_WATCH_LANGUAGE:FRENCH}
+      confidentiality: ${APP_INGEST_WATCH_CONFIDENTIALITY:INTERNAL}
 
 springdoc:
   api-docs:

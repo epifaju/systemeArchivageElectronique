@@ -10,7 +10,8 @@ import org.springframework.context.annotation.Configuration;
         AppOcrProperties.class,
         AppCorsProperties.class,
         AppClamavProperties.class,
-        AppRateLimitProperties.class
+        AppRateLimitProperties.class,
+        WatchedIngestProperties.class
 })
 public class ConfigurationBeans {
 }

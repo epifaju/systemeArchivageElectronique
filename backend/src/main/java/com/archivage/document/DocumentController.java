@@ -64,6 +64,16 @@ public class DocumentController {
         return ResponseEntity.status(201).body(documentUploadService.importBatch(files, metadata, principal));
     }
 
+    @PostMapping(value = "/import-zip", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyRole('AGENT','ARCHIVISTE','ADMIN')")
+    public ResponseEntity<List<DocumentDto>> importZip(
+            @RequestPart("zip") MultipartFile zip,
+            @Valid @RequestPart("metadata") UploadRequest metadata,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        return ResponseEntity.status(201).body(documentUploadService.importZip(zip, metadata, principal));
+    }
+
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','ARCHIVISTE','AGENT','LECTEUR')")
     public PageResponseDto<DocumentDto> list(

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useTranslation } from 'react-i18next';
 import { fetchDocumentTypes } from '../api/metadataApi';
-import { uploadDocument, importBatch } from '../api/documentsApi';
+import { uploadDocument, importBatch, importZip } from '../api/documentsApi';
 
 const LANGS = ['FRENCH', 'PORTUGUESE', 'OTHER', 'MULTILINGUAL'];
 const CONF = ['PUBLIC', 'INTERNAL', 'CONFIDENTIAL', 'SECRET'];
@@ -76,6 +76,13 @@ export default function UploadPage() {
   const uploadMutation = useMutation({
     mutationFn: async () => {
       if (!files.length) throw new Error('no files');
+      const hasZip = files.some((f) => f.name.toLowerCase().endsWith('.zip'));
+      if (files.length > 1 && hasZip) {
+        throw new Error('ZIP_MIXED');
+      }
+      if (files.length === 1 && files[0].name.toLowerCase().endsWith('.zip')) {
+        return importZip(files[0], metadata);
+      }
       if (files.length === 1) {
         return uploadDocument(files[0], metadata);
       }
@@ -144,6 +151,13 @@ export default function UploadPage() {
             </ul>
           )}
         </div>
+
+        {files.length === 1 && files[0].name.toLowerCase().endsWith('.zip') && (
+          <div className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
+            <p className="font-medium">{t('upload.zipMode')}</p>
+            <p className="mt-1 text-sky-900/90">{t('upload.zipHint')}</p>
+          </div>
+        )}
 
         {files.length > 1 && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
@@ -267,7 +281,9 @@ export default function UploadPage() {
 
         {uploadMutation.isError && (
           <p className="text-sm text-red-600">
-            {uploadMutation.error?.response?.data?.message || uploadMutation.error?.message || t('upload.error')}
+            {uploadMutation.error?.message === 'ZIP_MIXED'
+              ? t('upload.zipMixedError')
+              : uploadMutation.error?.response?.data?.message || uploadMutation.error?.message || t('upload.error')}
           </p>
         )}
         {uploadMutation.isSuccess && uploadMutation.data && (
@@ -285,9 +301,11 @@ export default function UploadPage() {
         >
           {uploadMutation.isPending
             ? t('upload.sending')
-            : files.length > 1
-              ? t('upload.submitBatch', { count: files.length })
-              : t('upload.submit')}
+            : files.length === 1 && files[0].name.toLowerCase().endsWith('.zip')
+              ? t('upload.submitZip')
+              : files.length > 1
+                ? t('upload.submitBatch', { count: files.length })
+                : t('upload.submit')}
         </button>
       </form>
     </div>

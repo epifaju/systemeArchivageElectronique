@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -67,6 +68,66 @@ public class SearchService {
             }
         }
         return PageResponseDto.of(new PageImpl<>(combined, pageable, hitPage.getTotalElements()));
+    }
+
+    /**
+     * Exporte les documents correspondant aux mêmes critères que la recherche, jusqu’à {@code maxRows} lignes (plafond 10 000).
+     */
+    @Transactional(readOnly = true)
+    public byte[] exportCsv(SearchRequest request, int maxRows, UserPrincipal principal) {
+        User reader = userRepository.findWithDepartmentById(principal.getUser().getId())
+                .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Utilisateur introuvable"));
+        int cap = Math.min(Math.max(maxRows, 1), 10_000);
+        List<Document> collected = new ArrayList<>();
+        int pageIdx = 0;
+        final int batch = 100;
+        while (collected.size() < cap) {
+            SearchRequest pageReq = new SearchRequest(
+                    request.q(),
+                    request.documentTypeId(),
+                    request.dateFrom(),
+                    request.dateTo(),
+                    request.folderNumber(),
+                    request.language(),
+                    request.status(),
+                    request.departmentId(),
+                    request.confidentialityLevel(),
+                    request.sort(),
+                    pageIdx,
+                    batch
+            );
+            Page<Document> p = documentRepository.searchDocuments(pageReq, PageRequest.of(pageIdx, batch), reader);
+            if (p.isEmpty()) {
+                break;
+            }
+            for (Document d : p.getContent()) {
+                if (collected.size() >= cap) {
+                    break;
+                }
+                collected.add(d);
+            }
+            if (!p.hasNext()) {
+                break;
+            }
+            pageIdx++;
+        }
+
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("exported", collected.size());
+        details.put("maxRequested", cap);
+        if (request.q() != null && !request.q().isBlank()) {
+            String q = request.q().trim();
+            details.put("q", q.length() > 500 ? q.substring(0, 500) + "…" : q);
+        }
+        auditService.log("SEARCH_EXPORT", reader, "SEARCH", null, details);
+        if (collected.isEmpty()) {
+            return SearchCsvExporter.toBytes(collected);
+        }
+        List<Long> ids = collected.stream().map(Document::getId).toList();
+        Map<Long, Document> byId = documentRepository.findDetailsByIds(ids).stream()
+                .collect(Collectors.toMap(Document::getId, Function.identity()));
+        List<Document> ordered = ids.stream().map(byId::get).filter(Objects::nonNull).toList();
+        return SearchCsvExporter.toBytes(ordered);
     }
 
     private SearchResultDto toResult(Document d, SearchHitRow hit) {

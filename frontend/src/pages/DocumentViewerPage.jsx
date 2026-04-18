@@ -299,7 +299,95 @@ export default function DocumentViewerPage() {
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col lg:flex-row lg:items-start">
+      {/* Toujours visible sous la barre titre (pas dans la colonne latérale : évite d’être hors écran sous un PDF long). */}
+      <div
+        id="document-history"
+        className="shrink-0 border-b border-slate-200 bg-slate-50 px-4 py-4 scroll-mt-4"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <h2 className="text-base font-semibold text-brand-dark">{t('viewer.history')}</h2>
+          <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={historyIncludeViews}
+              onChange={(e) => {
+                setHistoryIncludeViews(e.target.checked);
+                setHistoryPage(0);
+              }}
+            />
+            {t('viewer.historyIncludeViews')}
+          </label>
+        </div>
+        {historyError && (
+          <p className="text-sm text-red-600">
+            {historyErr?.response?.data?.message || historyErr?.message || t('viewer.historyError')}
+          </p>
+        )}
+        {historyLoading && <p className="text-sm text-slate-600">{t('viewer.historyLoading')}</p>}
+        {!historyLoading && !historyError && (historyData?.content ?? []).length === 0 && (
+          <p className="text-sm text-slate-600">{t('viewer.historyEmpty')}</p>
+        )}
+        {!historyLoading && !historyError && (historyData?.content ?? []).length > 0 && (
+          <>
+            <div className="overflow-x-auto max-h-60 overflow-y-auto rounded border border-slate-200 bg-white">
+              <table className="min-w-full text-sm">
+                <thead className="bg-slate-100 text-left text-slate-600 sticky top-0">
+                  <tr>
+                    <th className="px-2 py-2 font-medium">{t('viewer.historyColDate')}</th>
+                    <th className="px-2 py-2 font-medium">{t('viewer.historyColUser')}</th>
+                    <th className="px-2 py-2 font-medium">{t('viewer.historyColAction')}</th>
+                    <th className="px-2 py-2 font-medium">{t('viewer.historyColDetails')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(historyData?.content ?? []).map((row) => (
+                    <tr key={row.id} className="border-t border-slate-100">
+                      <td className="px-2 py-1.5 whitespace-nowrap text-slate-700">
+                        {formatHistoryDate(row.createdAt)}
+                      </td>
+                      <td className="px-2 py-1.5 text-slate-800">{row.username || '—'}</td>
+                      <td className="px-2 py-1.5 font-mono text-xs text-slate-800">
+                        {historyActionLabel(t, row.action)}
+                      </td>
+                      <td className="px-2 py-1.5 text-xs text-slate-600 max-w-[200px] sm:max-w-xs">
+                        <span className="break-words">{formatHistoryDetails(row.details)}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {(historyData.totalPages > 1 || historyData.hasPrevious || historyData.hasNext) && (
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+                <button
+                  type="button"
+                  className="rounded border border-slate-300 bg-white px-2 py-1 disabled:opacity-40"
+                  disabled={historyPage <= 0}
+                  onClick={() => setHistoryPage((p) => Math.max(0, p - 1))}
+                >
+                  {t('viewer.historyPrev')}
+                </button>
+                <span className="text-slate-600">
+                  {t('viewer.historyPageOf', {
+                    current: historyData.currentPage + 1,
+                    total: historyData.totalPages,
+                  })}
+                </span>
+                <button
+                  type="button"
+                  className="rounded border border-slate-300 bg-white px-2 py-1 disabled:opacity-40"
+                  disabled={!historyData.hasNext}
+                  onClick={() => setHistoryPage((p) => p + 1)}
+                >
+                  {t('viewer.historyNext')}
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      <div className="flex flex-1 flex-col lg:flex-row lg:items-start min-h-0">
         <div className="flex-1 min-w-0 bg-slate-100 p-4 overflow-auto flex flex-col items-center">
           {doc.ocrAvailable && (
             <div className="mb-3 flex flex-wrap gap-2 justify-center">
@@ -506,90 +594,6 @@ export default function DocumentViewerPage() {
               )}
             </>
           )}
-
-          <div id="document-history" className="mt-6 pt-4 border-t border-slate-200 scroll-mt-4">
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-              <h2 className="font-semibold text-brand-dark">{t('viewer.history')}</h2>
-              <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={historyIncludeViews}
-                  onChange={(e) => {
-                    setHistoryIncludeViews(e.target.checked);
-                    setHistoryPage(0);
-                  }}
-                />
-                {t('viewer.historyIncludeViews')}
-              </label>
-            </div>
-            {historyError && (
-              <p className="text-sm text-red-600">
-                {historyErr?.response?.data?.message || historyErr?.message || t('viewer.historyError')}
-              </p>
-            )}
-            {historyLoading && <p className="text-sm text-slate-500">{t('viewer.historyLoading')}</p>}
-            {!historyLoading && !historyError && historyData?.content?.length === 0 && (
-              <p className="text-sm text-slate-500">{t('viewer.historyEmpty')}</p>
-            )}
-            {!historyLoading && !historyError && historyData?.content?.length > 0 && (
-              <>
-                <div className="overflow-x-auto max-h-72 overflow-y-auto rounded border border-slate-200">
-                  <table className="min-w-full text-sm">
-                    <thead className="bg-slate-50 text-left text-slate-600 sticky top-0">
-                      <tr>
-                        <th className="px-2 py-2 font-medium">{t('viewer.historyColDate')}</th>
-                        <th className="px-2 py-2 font-medium">{t('viewer.historyColUser')}</th>
-                        <th className="px-2 py-2 font-medium">{t('viewer.historyColAction')}</th>
-                        <th className="px-2 py-2 font-medium">{t('viewer.historyColDetails')}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {historyData.content.map((row) => (
-                        <tr key={row.id} className="border-t border-slate-100">
-                          <td className="px-2 py-1.5 whitespace-nowrap text-slate-700">
-                            {formatHistoryDate(row.createdAt)}
-                          </td>
-                          <td className="px-2 py-1.5 text-slate-800">{row.username || '—'}</td>
-                          <td className="px-2 py-1.5 font-mono text-xs text-slate-800">
-                            {historyActionLabel(t, row.action)}
-                          </td>
-                          <td className="px-2 py-1.5 text-xs text-slate-600 max-w-[200px] lg:max-w-[240px]">
-                            <span className="break-words">{formatHistoryDetails(row.details)}</span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                {(historyData.totalPages > 1 || historyData.hasPrevious || historyData.hasNext) && (
-                  <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
-                    <button
-                      type="button"
-                      className="rounded border border-slate-300 px-2 py-1 disabled:opacity-40"
-                      disabled={historyPage <= 0}
-                      onClick={() => setHistoryPage((p) => Math.max(0, p - 1))}
-                    >
-                      {t('viewer.historyPrev')}
-                    </button>
-                    <span className="text-slate-600">
-                      {t('viewer.historyPageOf', {
-                        current: historyData.currentPage + 1,
-                        total: historyData.totalPages,
-                      })}
-                    </span>
-                    <button
-                      type="button"
-                      className="rounded border border-slate-300 px-2 py-1 disabled:opacity-40"
-                      disabled={!historyData.hasNext}
-                      onClick={() => setHistoryPage((p) => p + 1)}
-                    >
-                      {t('viewer.historyNext')}
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
         </aside>
       </div>
     </div>
