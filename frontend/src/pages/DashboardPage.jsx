@@ -23,6 +23,32 @@ function formatInt(n, locale) {
   }
 }
 
+function formatDocDate(isoDate, loc) {
+  if (!isoDate) return '—';
+  try {
+    const [y, m, d] = String(isoDate).split('T')[0].split('-').map(Number);
+    return new Intl.DateTimeFormat(loc, { dateStyle: 'medium' }).format(new Date(y, m - 1, d));
+  } catch {
+    return String(isoDate);
+  }
+}
+
+function formatActivityTime(iso, loc) {
+  if (!iso) return '—';
+  try {
+    return new Intl.DateTimeFormat(loc, { dateStyle: 'short', timeStyle: 'short' }).format(new Date(iso));
+  } catch {
+    return String(iso);
+  }
+}
+
+function activityLabel(t, action) {
+  if (!action) return '—';
+  const key = `viewer.historyAction.${action}`;
+  const label = t(key);
+  return label === key ? action : label;
+}
+
 export default function DashboardPage() {
   const { t, i18n } = useTranslation();
   const locale = i18n.language?.startsWith('pt') ? 'pt-PT' : 'fr-FR';
@@ -60,6 +86,63 @@ export default function DashboardPage() {
             <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-6">
               {t('dashboard.auditeurHint')}
             </p>
+          )}
+
+          {role !== 'AUDITEUR' && (
+            <div className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <h2 className="text-sm font-semibold text-slate-800 mb-4">{t('dashboard.recentDocs')}</h2>
+              {!data.recentDocuments || data.recentDocuments.length === 0 ? (
+                <p className="text-sm text-slate-500">{t('dashboard.recentDocsEmpty')}</p>
+              ) : (
+                <ul className="divide-y divide-slate-100">
+                  {data.recentDocuments.map((d) => {
+                    const typeLabel =
+                      locale.startsWith('pt') ? d.documentTypeLabelPt : d.documentTypeLabelFr;
+                    return (
+                      <li key={d.id} className="py-3 first:pt-0 last:pb-0">
+                        <Link
+                          className="font-medium text-brand-mid hover:underline"
+                          to={`/documents/${d.id}`}
+                        >
+                          {d.title}
+                        </Link>
+                        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-500">
+                          <span>{typeLabel || d.documentTypeCode}</span>
+                          <span>{formatDocDate(d.documentDate, locale)}</span>
+                          <span>{t(`enums.documentStatus.${d.status}`)}</span>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          )}
+
+          {role !== 'AUDITEUR' && (
+            <div className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <h2 className="text-sm font-semibold text-slate-800 mb-4">{t('dashboard.recentActivity')}</h2>
+              {!data.recentActivity || data.recentActivity.length === 0 ? (
+                <p className="text-sm text-slate-500">{t('dashboard.recentActivityEmpty')}</p>
+              ) : (
+                <ul className="divide-y divide-slate-100">
+                  {data.recentActivity.map((a) => (
+                    <li key={`${a.documentId}-${a.action}-${a.occurredAt}`} className="py-3 first:pt-0 last:pb-0">
+                      <Link
+                        className="font-medium text-brand-mid hover:underline"
+                        to={`/documents/${a.documentId}`}
+                      >
+                        {a.documentTitle || `#${a.documentId}`}
+                      </Link>
+                      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-500">
+                        <span>{activityLabel(t, a.action)}</span>
+                        <span>{formatActivityTime(a.occurredAt, locale)}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           )}
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-8">

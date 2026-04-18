@@ -7,6 +7,7 @@ import com.archivage.common.domain.DocumentStatus;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public record DocumentDto(
@@ -33,6 +34,7 @@ public record DocumentDto(
         String author,
         String notes,
         List<String> tags,
+        Map<String, Object> customMetadata,
         Instant createdAt,
         Instant updatedAt,
         /** Non null uniquement pour les documents supprimés logiquement (ex. liste admin). */

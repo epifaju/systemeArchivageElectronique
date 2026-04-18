@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import DOMPurify from 'dompurify';
 import { createSavedSearch, deleteSavedSearch, fetchSavedSearches } from '../api/savedSearchApi';
 import { downloadSearchCsv, searchDocuments } from '../api/searchApi';
 
@@ -10,10 +11,11 @@ const SORTS = ['RELEVANCE', 'DATE_DESC', 'DATE_ASC', 'TITLE_ASC'];
 function HighlightSnippet({ value }) {
   if (!value) return null;
   if (value.includes('<mark>')) {
+    const clean = DOMPurify.sanitize(value, { ALLOWED_TAGS: ['mark'], ALLOWED_ATTR: [] });
     return (
       <span
         className="search-highlight [&_mark]:bg-amber-200 [&_mark]:rounded-sm"
-        dangerouslySetInnerHTML={{ __html: value }}
+        dangerouslySetInnerHTML={{ __html: clean }}
       />
     );
   }

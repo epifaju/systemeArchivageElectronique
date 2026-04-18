@@ -14,6 +14,7 @@ import com.archivage.document.zip.ZipImportExtractor;
 import com.archivage.document.repository.DocumentRepository;
 import com.archivage.metadata.entity.DocumentTypeEntity;
 import com.archivage.metadata.repository.DocumentTypeRepository;
+import com.archivage.metadata.validation.CustomMetadataValidator;
 import com.archivage.ocr.OcrJobService;
 import com.archivage.storage.FileStorageService;
 import com.archivage.storage.clamav.ClamAvScanner;
@@ -31,6 +32,7 @@ import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.io.ByteArrayInputStream;
 import java.util.Optional;
 
@@ -55,6 +57,7 @@ public class DocumentUploadService {
     private final AuditService auditService;
     private final DepartmentRepository departmentRepository;
     private final ClamAvScanner clamAvScanner;
+    private final CustomMetadataValidator customMetadataValidator;
 
     @Transactional
     public DocumentDto upload(MultipartFile file, UploadRequest request, UserPrincipal principal) {
@@ -111,6 +114,9 @@ public class DocumentUploadService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "TYPE_INACTIVE", "Type documentaire inactif");
         }
 
+        Map<String, Object> customMeta = customMetadataValidator.validateAndNormalize(
+                docType.getCustomFieldsSchema(), request.customMetadata());
+
         Document doc = Document.builder()
                 .title(request.title())
                 .documentType(docType)
@@ -124,6 +130,7 @@ public class DocumentUploadService {
                 .notes(request.notes())
                 .uploadedBy(uploader)
                 .department(resolveDepartment(request.departmentId(), uploader.getId()))
+                .customMetadata(customMeta)
                 .tags(new ArrayList<>())
                 .build();
 
@@ -181,7 +188,8 @@ public class DocumentUploadService {
                     template.externalReference(),
                     template.author(),
                     template.notes(),
-                    template.tags()
+                    template.tags(),
+                    template.customMetadata()
             );
             out.add(ingestDocument(e.content(), e.entryName(), req, uploader));
         }
@@ -211,7 +219,8 @@ public class DocumentUploadService {
                     template.externalReference(),
                     template.author(),
                     template.notes(),
-                    template.tags()
+                    template.tags(),
+                    template.customMetadata()
             );
             byte[] content;
             try {

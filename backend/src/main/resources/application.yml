@@ -61,6 +61,7 @@ app:
     read-timeout-ms: ${CLAMAV_READ_TIMEOUT_MS:120000}
   rate-limit:
     auth:
+      # Bucket4j : jetons max par fenêtre (POST /api/auth/login, /refresh), clé = IP
       max-requests: ${AUTH_RATE_LIMIT_MAX:30}
       window-seconds: ${AUTH_RATE_LIMIT_WINDOW_SECONDS:60}
   ingest:

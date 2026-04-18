@@ -37,6 +37,18 @@ export async function updateDocumentMetadata(id, body) {
   return data;
 }
 
+/** Mise à jour partielle (PATCH) — champs absents = inchangés côté serveur. */
+export async function patchDocumentMetadata(id, body) {
+  const { data } = await api.patch(`/api/documents/${id}/metadata`, body);
+  return data;
+}
+
+/** Suggestions heuristiques (dates, références, e-mails) depuis le texte OCR. */
+export async function fetchMetadataSuggestions(id) {
+  const { data } = await api.get(`/api/documents/${id}/metadata-suggestions`);
+  return data;
+}
+
 export async function reprocessDocumentOcr(id) {
   await api.post(`/api/documents/${id}/reprocess-ocr`);
 }

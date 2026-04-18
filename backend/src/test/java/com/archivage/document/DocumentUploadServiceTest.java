@@ -8,6 +8,7 @@ import com.archivage.document.mapper.DocumentMapper;
 import com.archivage.document.repository.DocumentRepository;
 import com.archivage.metadata.entity.DocumentTypeEntity;
 import com.archivage.metadata.repository.DocumentTypeRepository;
+import com.archivage.metadata.validation.CustomMetadataValidator;
 import com.archivage.ocr.OcrJobService;
 import com.archivage.storage.FileStorageService;
 import com.archivage.storage.clamav.ClamAvScanner;
@@ -53,6 +54,8 @@ class DocumentUploadServiceTest {
     private DepartmentRepository departmentRepository;
     @Mock
     private ClamAvScanner clamAvScanner;
+    @Mock
+    private CustomMetadataValidator customMetadataValidator;
 
     private DocumentUploadService service;
 
@@ -67,7 +70,8 @@ class DocumentUploadServiceTest {
                 ocrJobService,
                 auditService,
                 departmentRepository,
-                clamAvScanner
+                clamAvScanner,
+                customMetadataValidator
         );
         org.mockito.Mockito.when(clamAvScanner.isEnabled()).thenReturn(false);
     }
@@ -87,7 +91,8 @@ class DocumentUploadServiceTest {
                 "titre", 1L, "F-1", java.time.LocalDate.now(),
                 com.archivage.common.domain.DocumentLanguage.FRENCH,
                 com.archivage.common.domain.ConfidentialityLevel.INTERNAL,
-                null, null, null, null, null
+                null, null, null, null, null,
+                null
         );
 
         assertThatThrownBy(() -> service.upload(file, req, principal))

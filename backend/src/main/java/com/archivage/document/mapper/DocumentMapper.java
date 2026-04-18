@@ -8,6 +8,7 @@ import org.mapstruct.Mapping;
 import org.mapstruct.MappingConstants;
 
 import java.util.List;
+import java.util.Map;
 
 @Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 public interface DocumentMapper {
@@ -19,7 +20,12 @@ public interface DocumentMapper {
     @Mapping(target = "documentTypeLabelPt", source = "document.documentType.labelPt")
     @Mapping(target = "ocrAvailable", expression = "java(document.getOcrPath() != null && !document.getOcrPath().isBlank())")
     @Mapping(target = "tags", expression = "java(mapTags(document.getTags()))")
+    @Mapping(target = "customMetadata", expression = "java(emptyToNull(document.getCustomMetadata()))")
     DocumentDto toDto(Document document);
+
+    default Map<String, Object> emptyToNull(Map<String, Object> m) {
+        return m == null || m.isEmpty() ? null : m;
+    }
 
     default List<String> mapTags(List<DocumentTag> tags) {
         if (tags == null) {

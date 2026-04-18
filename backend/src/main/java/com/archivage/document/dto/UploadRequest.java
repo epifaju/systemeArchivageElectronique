@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 public record UploadRequest(
         @NotBlank @Size(max = 500) String title,
@@ -20,6 +21,8 @@ public record UploadRequest(
         @Size(max = 100) String externalReference,
         @Size(max = 200) String author,
         String notes,
-        List<@Size(max = 100) String> tags
+        List<@Size(max = 100) String> tags,
+        /** Champs métier selon le schéma du type documentaire ; null si aucun. */
+        Map<String, Object> customMetadata
 ) {
 }

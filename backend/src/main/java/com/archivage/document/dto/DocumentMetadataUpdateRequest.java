@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 public record DocumentMetadataUpdateRequest(
         @NotBlank @Size(max = 500) String title,
@@ -20,6 +21,11 @@ public record DocumentMetadataUpdateRequest(
         @Size(max = 100) String externalReference,
         @Size(max = 200) String author,
         String notes,
-        List<@Size(max = 100) String> tags
+        List<@Size(max = 100) String> tags,
+        /**
+         * Si présent (y compris objet vide), remplace les champs métier.
+         * Si absent ou null : inchangé ; si le type documentaire change, les champs métier sont réinitialisés.
+         */
+        Map<String, Object> customMetadata
 ) {
 }

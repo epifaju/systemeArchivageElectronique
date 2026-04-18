@@ -14,6 +14,7 @@ import RoleGate from './components/RoleGate.jsx';
 import AdminOcrQueuePage from './pages/AdminOcrQueuePage.jsx';
 import AdminAuditPage from './pages/AdminAuditPage.jsx';
 import AdminDocumentsDeletedPage from './pages/AdminDocumentsDeletedPage.jsx';
+import AdminSystemSettingsPage from './pages/AdminSystemSettingsPage.jsx';
 
 function Protected({ children }) {
   const token = localStorage.getItem('accessToken');
@@ -88,6 +89,7 @@ export default function App() {
         <Route path="/admin/users" element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
         <Route path="/admin/document-types" element={<AdminRoute><AdminDocumentTypesPage /></AdminRoute>} />
         <Route path="/admin/documents-deleted" element={<AdminRoute><AdminDocumentsDeletedPage /></AdminRoute>} />
+        <Route path="/admin/system-settings" element={<AdminRoute><AdminSystemSettingsPage /></AdminRoute>} />
         <Route path="/admin/ocr-queue" element={<OcrQueueRoute><AdminOcrQueuePage /></OcrQueueRoute>} />
         <Route
           path="/admin/audit"

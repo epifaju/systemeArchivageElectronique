@@ -10,19 +10,21 @@ export default function LoginPage() {
   const setSession = useAuthStore((s) => s.setSession);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [errorKey, setErrorKey] = useState('');
 
   async function onSubmit(e) {
     e.preventDefault();
-    setError('');
+    setErrorKey('');
     try {
       const { data } = await api.post('/api/auth/login', { username, password });
       localStorage.setItem('accessToken', data.accessToken);
       localStorage.setItem('refreshToken', data.refreshToken);
       setSession(data);
       navigate('/dashboard');
-    } catch {
-      setError('401');
+    } catch (err) {
+      if (err.response?.status === 401) setErrorKey('auth.errorInvalid');
+      else if (!err.response) setErrorKey('auth.errorNetwork');
+      else setErrorKey('auth.errorGeneric');
     }
   }
 
@@ -50,7 +52,7 @@ export default function LoginPage() {
               autoComplete="current-password"
             />
           </div>
-          {error && <p className="text-sm text-red-600">{t('auth.login')} — erreur</p>}
+          {errorKey && <p className="text-sm text-red-600">{t(errorKey)}</p>}
           <button
             type="submit"
             className="w-full rounded bg-brand-mid py-2 text-white hover:bg-brand-dark"

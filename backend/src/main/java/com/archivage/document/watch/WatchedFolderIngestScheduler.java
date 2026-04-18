@@ -121,7 +121,8 @@ public class WatchedFolderIngestScheduler {
                         blankToNull(props.getExternalReference()),
                         blankToNull(props.getAuthor()),
                         blankToNull(props.getNotes()),
-                        tags
+                        tags,
+                        null
                 );
                 watchedIngestExecutor.ingest(content, name, req, uploader);
                 moveToSubdir(file, processed, name);

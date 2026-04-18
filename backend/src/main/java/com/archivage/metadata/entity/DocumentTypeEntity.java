@@ -9,6 +9,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -33,6 +34,13 @@ public class DocumentTypeEntity extends BaseEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "required_fields")
     private String requiredFields;
+
+    /**
+     * Schéma des champs métier (JSON) : {@code { "version": 1, "fields": [ { "key", "type", "labelFr", ... } ] }}.
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "custom_fields_schema")
+    private JsonNode customFieldsSchema;
 
     @Column(nullable = false)
     private Boolean active;

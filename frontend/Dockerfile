@@ -3,7 +3,8 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install
 COPY . .
-# URL du backend vue depuis le navigateur (hôte). Surchargeable au build Docker Compose.
+# URL du backend vue depuis le navigateur (hôte). Vide = appels relatifs /api (passerelle HTTPS).
+# Le profil docker-compose.https.yml passe VITE_API_URL vide pour ce mode.
 ARG VITE_API_URL=http://localhost:8080
 ENV VITE_API_URL=$VITE_API_URL
 RUN npm run build

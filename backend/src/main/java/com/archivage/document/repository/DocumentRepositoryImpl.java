@@ -15,6 +15,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
@@ -32,6 +33,24 @@ public class DocumentRepositoryImpl implements DocumentRepositoryCustom {
 
     public DocumentRepositoryImpl(DocumentAccessService documentAccessService) {
         this.documentAccessService = documentAccessService;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public List<Document> findRecentVisibleForReader(User reader, int limit) {
+        if (limit <= 0) {
+            return Collections.emptyList();
+        }
+        Map<String, Object> params = new HashMap<>();
+        StringBuilder where = new StringBuilder();
+        appendReaderDocumentScope(where, params, reader);
+        Query q = entityManager.createNativeQuery(
+                "SELECT d.* FROM documents d " + where + " ORDER BY d.created_at DESC",
+                Document.class
+        );
+        bindParams(q, params);
+        q.setMaxResults(limit);
+        return q.getResultList();
     }
 
     @Override

@@ -7,7 +7,9 @@ import com.archivage.common.domain.DocumentLanguage;
 import com.archivage.common.domain.DocumentStatus;
 import com.archivage.common.dto.PageResponseDto;
 import com.archivage.document.dto.DocumentDto;
+import com.archivage.document.dto.DocumentMetadataPatchRequest;
 import com.archivage.document.dto.DocumentMetadataUpdateRequest;
+import com.archivage.document.dto.MetadataSuggestionsDto;
 import com.archivage.document.dto.DocumentStatusUpdateRequest;
 import com.archivage.document.dto.UploadRequest;
 import com.archivage.search.dto.SearchRequest;
@@ -22,6 +24,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -107,6 +110,15 @@ public class DocumentController {
         return documentService.list(req, principal);
     }
 
+    @GetMapping("/{id}/metadata-suggestions")
+    @PreAuthorize("hasAnyRole('ADMIN','ARCHIVISTE','AGENT','LECTEUR')")
+    public MetadataSuggestionsDto metadataSuggestions(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        return documentService.getMetadataSuggestions(id, principal);
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','ARCHIVISTE','AGENT','LECTEUR')")
     public DocumentDto get(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
@@ -143,6 +155,16 @@ public class DocumentController {
             @AuthenticationPrincipal UserPrincipal principal
     ) {
         return documentService.updateMetadata(id, request, principal);
+    }
+
+    @PatchMapping("/{id}/metadata")
+    @PreAuthorize("hasAnyRole('AGENT','ARCHIVISTE','ADMIN')")
+    public DocumentDto patchMetadata(
+            @PathVariable Long id,
+            @Valid @RequestBody DocumentMetadataPatchRequest request,
+            @AuthenticationPrincipal UserPrincipal principal
+    ) {
+        return documentService.patchMetadata(id, request, principal);
     }
 
     @PutMapping("/{id}/status")

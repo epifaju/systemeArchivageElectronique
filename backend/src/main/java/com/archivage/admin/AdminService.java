@@ -113,7 +113,8 @@ public class AdminService {
     public PageResponseDto<DocumentTypeAdminDto> listDocumentTypes(int page, int size) {
         Page<DocumentTypeEntity> pageResult = documentTypeRepository.findAll(PageRequest.of(page, size));
         return PageResponseDto.of(pageResult.map(dt -> new DocumentTypeAdminDto(
-                dt.getId(), dt.getCode(), dt.getLabelFr(), dt.getLabelPt(), Boolean.TRUE.equals(dt.getActive())
+                dt.getId(), dt.getCode(), dt.getLabelFr(), dt.getLabelPt(), Boolean.TRUE.equals(dt.getActive()),
+                dt.getCustomFieldsSchema()
         )));
     }
 
@@ -127,11 +128,13 @@ public class AdminService {
                 .labelFr(request.labelFr())
                 .labelPt(request.labelPt())
                 .active(request.active())
+                .customFieldsSchema(request.customFieldsSchema())
                 .build();
         entity = documentTypeRepository.save(entity);
         auditService.log("ADMIN_DOC_TYPE_CREATE", actor, "DOCUMENT_TYPE", entity.getId(), Map.of("code", entity.getCode()));
         return new DocumentTypeAdminDto(
-                entity.getId(), entity.getCode(), entity.getLabelFr(), entity.getLabelPt(), Boolean.TRUE.equals(entity.getActive())
+                entity.getId(), entity.getCode(), entity.getLabelFr(), entity.getLabelPt(), Boolean.TRUE.equals(entity.getActive()),
+                entity.getCustomFieldsSchema()
         );
     }
 

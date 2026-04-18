@@ -27,6 +27,6 @@ public class MetadataController {
     }
 
     private DocumentTypeOptionDto toOption(DocumentTypeEntity e) {
-        return new DocumentTypeOptionDto(e.getId(), e.getCode(), e.getLabelFr(), e.getLabelPt());
+        return new DocumentTypeOptionDto(e.getId(), e.getCode(), e.getLabelFr(), e.getLabelPt(), e.getCustomFieldsSchema());
     }
 }

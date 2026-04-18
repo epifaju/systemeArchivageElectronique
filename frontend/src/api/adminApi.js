@@ -44,6 +44,11 @@ export async function restoreDocument(id) {
   await api.post(`/api/admin/documents/${id}/restore`);
 }
 
+export async function fetchSystemSettings() {
+  const { data } = await api.get('/api/admin/system-settings');
+  return data;
+}
+
 export async function listAuditLogs(page = 0, size = 50, filters = {}) {
   const params = { page, size, ...filters };
   Object.keys(params).forEach((k) => {

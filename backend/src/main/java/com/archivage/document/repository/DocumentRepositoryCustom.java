@@ -9,9 +9,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 
 public interface DocumentRepositoryCustom {
+
+    List<Document> findRecentVisibleForReader(User reader, int limit);
 
     Page<Document> searchDocuments(SearchRequest request, Pageable pageable, User reader);
 

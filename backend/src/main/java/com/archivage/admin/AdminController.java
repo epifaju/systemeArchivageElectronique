@@ -1,6 +1,7 @@
 package com.archivage.admin;
 
 import com.archivage.admin.dto.AuditLogAdminDto;
+import com.archivage.admin.dto.SystemSettingsDto;
 import com.archivage.admin.dto.CreateDocumentTypeRequest;
 import com.archivage.admin.dto.CreateUserRequest;
 import com.archivage.admin.dto.DashboardDto;
@@ -37,6 +38,7 @@ public class AdminController {
 
     private final AdminService adminService;
     private final DocumentService documentService;
+    private final SystemSettingsService systemSettingsService;
 
     @GetMapping("/users")
     @PreAuthorize("hasRole('ADMIN')")
@@ -88,6 +90,15 @@ public class AdminController {
     @PreAuthorize("hasRole('ADMIN')")
     public DashboardDto dashboard() {
         return adminService.dashboard();
+    }
+
+    /**
+     * Paramètres d’exploitation (lecture seule) — aligné PRD §9 Administration / SystemSettings.
+     */
+    @GetMapping("/system-settings")
+    @PreAuthorize("hasRole('ADMIN')")
+    public SystemSettingsDto systemSettings() {
+        return systemSettingsService.get();
     }
 
     @GetMapping("/ocr-queue/stats")

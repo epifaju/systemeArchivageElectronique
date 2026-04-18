@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Document, Page } from 'react-pdf';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -13,7 +13,9 @@ import {
   reprocessDocumentOcr,
   triggerBlobDownload,
   updateDocumentMetadata,
+  fetchMetadataSuggestions,
 } from '../api/documentApi';
+import CustomMetadataFields, { buildCustomPayload, getSchemaFields } from '../components/CustomMetadataFields.jsx';
 import { useEffectiveRole } from '../hooks/useEffectiveRole';
 
 function defaultShowOcrFirst(mime, ocrAvailable) {
@@ -531,6 +533,7 @@ export default function DocumentViewerPage() {
               saving={metaMutation.isPending}
               error={metaMutation.error}
               t={t}
+              langUi={i18n.language?.startsWith('pt') ? 'pt' : 'fr'}
             />
           ) : (
             <>
@@ -567,6 +570,18 @@ export default function DocumentViewerPage() {
                 {doc.tags?.length > 0 && (
                   <Row label={t('upload.field.tags')} value={doc.tags.join(', ')} />
                 )}
+                {doc.customMetadata &&
+                  typeof doc.customMetadata === 'object' &&
+                  Object.keys(doc.customMetadata).length > 0 && (
+                    <>
+                      <div className="pt-2 border-t border-slate-100 mt-2">
+                        <p className="text-xs font-medium text-slate-500 mb-1">{t('viewer.customMetadata')}</p>
+                        {Object.entries(doc.customMetadata).map(([k, v]) => (
+                          <Row key={k} label={k} value={String(v)} mono />
+                        ))}
+                      </div>
+                    </>
+                  )}
               </dl>
               {canReprocess && (
                 <button
@@ -641,7 +656,7 @@ function Row({ label, value, mono }) {
   );
 }
 
-function MetadataEditor({ doc, docTypes, onCancel, onSave, saving, error, t }) {
+function MetadataEditor({ doc, docTypes, onCancel, onSave, saving, error, t, langUi }) {
   const mergedTypes = useMemo(() => {
     if (!doc) return docTypes;
     if (docTypes.some((x) => x.id === doc.documentTypeId)) return docTypes;
@@ -651,6 +666,7 @@ function MetadataEditor({ doc, docTypes, onCancel, onSave, saving, error, t }) {
         code: doc.documentTypeCode,
         labelFr: doc.documentTypeLabelFr,
         labelPt: doc.documentTypeLabelPt,
+        customFieldsSchema: null,
       },
       ...docTypes,
     ];
@@ -667,6 +683,27 @@ function MetadataEditor({ doc, docTypes, onCancel, onSave, saving, error, t }) {
   const [author, setAuthor] = useState(doc.author || '');
   const [notes, setNotes] = useState(doc.notes || '');
   const [tags, setTags] = useState((doc.tags || []).join(', '));
+  const [customMeta, setCustomMeta] = useState(() =>
+    doc.customMetadata && typeof doc.customMetadata === 'object' ? { ...doc.customMetadata } : {},
+  );
+  const [suggestData, setSuggestData] = useState(null);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const prevTypeRef = useRef(doc.documentTypeId);
+
+  useEffect(() => {
+    setCustomMeta(
+      doc.customMetadata && typeof doc.customMetadata === 'object' ? { ...doc.customMetadata } : {},
+    );
+    prevTypeRef.current = doc.documentTypeId;
+  }, [doc.id, doc.customMetadata, doc.documentTypeId]);
+
+  useEffect(() => {
+    const n = Number(documentTypeId);
+    if (n !== prevTypeRef.current) {
+      setCustomMeta({});
+      prevTypeRef.current = n;
+    }
+  }, [documentTypeId]);
 
   function submit(e) {
     e.preventDefault();
@@ -674,7 +711,9 @@ function MetadataEditor({ doc, docTypes, onCancel, onSave, saving, error, t }) {
       .split(',')
       .map((x) => x.trim())
       .filter(Boolean);
-    onSave({
+    const selected = mergedTypes.find((x) => String(x.id) === String(documentTypeId));
+    const fields = getSchemaFields(selected?.customFieldsSchema);
+    const body = {
       title: title.trim(),
       documentTypeId: Number(documentTypeId),
       folderNumber: folderNumber.trim(),
@@ -686,7 +725,26 @@ function MetadataEditor({ doc, docTypes, onCancel, onSave, saving, error, t }) {
       author: author.trim() || null,
       notes: notes.trim() || null,
       tags: tagList.length ? tagList : null,
-    });
+    };
+    if (fields.length) {
+      body.customMetadata = buildCustomPayload(fields, customMeta) ?? {};
+    } else {
+      body.customMetadata = null;
+    }
+    onSave(body);
+  }
+
+  async function loadSuggestions() {
+    setSuggestLoading(true);
+    setSuggestData(null);
+    try {
+      const s = await fetchMetadataSuggestions(doc.id);
+      setSuggestData(s);
+    } catch {
+      setSuggestData({ isoDates: [], referenceLike: [], emails: [] });
+    } finally {
+      setSuggestLoading(false);
+    }
   }
 
   return (
@@ -711,7 +769,7 @@ function MetadataEditor({ doc, docTypes, onCancel, onSave, saving, error, t }) {
         >
           {mergedTypes.map((dt) => (
             <option key={dt.id} value={dt.id}>
-              {dt.code} — {dt.labelFr}
+              {dt.code} — {langUi === 'pt' ? dt.labelPt : dt.labelFr}
             </option>
           ))}
         </select>
@@ -806,6 +864,74 @@ function MetadataEditor({ doc, docTypes, onCancel, onSave, saving, error, t }) {
           onChange={(e) => setTags(e.target.value)}
         />
       </label>
+
+      <div className="rounded border border-slate-200 bg-slate-50 p-2">
+        <button
+          type="button"
+          className="text-xs text-brand-mid hover:underline disabled:opacity-50"
+          onClick={loadSuggestions}
+          disabled={suggestLoading}
+        >
+          {suggestLoading ? '…' : t('viewer.suggestFromOcr')}
+        </button>
+        {suggestData && (
+          <div className="mt-2 space-y-2 text-xs text-slate-700">
+            {suggestData.isoDates?.length > 0 && (
+              <div>
+                <span className="text-slate-500">{t('viewer.suggestedDates')} </span>
+                {suggestData.isoDates.map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    className="mr-1 text-brand-mid underline"
+                    onClick={() => setDocumentDate(d)}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+            )}
+            {suggestData.referenceLike?.length > 0 && (
+              <div>
+                <span className="text-slate-500">{t('viewer.suggestedRefs')} </span>
+                {suggestData.referenceLike.map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    className="mr-1 text-brand-mid underline"
+                    onClick={() => setExternalReference(r)}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+            )}
+            {suggestData.emails?.length > 0 && (
+              <div>
+                <span className="text-slate-500">{t('viewer.suggestedEmails')} </span>
+                {suggestData.emails.map((em) => (
+                  <button
+                    key={em}
+                    type="button"
+                    className="mr-1 text-brand-mid underline"
+                    onClick={() => setNotes((n) => (n ? `${n}\n${em}` : em))}
+                  >
+                    {em}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <CustomMetadataFields
+        schema={mergedTypes.find((x) => String(x.id) === String(documentTypeId))?.customFieldsSchema}
+        value={customMeta}
+        onChange={setCustomMeta}
+        lang={langUi}
+      />
+
       {error && (
         <p className="text-red-600 text-xs">{error?.response?.data?.message || error?.message}</p>
       )}

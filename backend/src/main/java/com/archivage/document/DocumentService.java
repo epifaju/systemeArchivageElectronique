@@ -10,7 +10,9 @@ import com.archivage.common.domain.DocumentStatus;
 import com.archivage.common.dto.PageResponseDto;
 import com.archivage.common.exception.ApiException;
 import com.archivage.document.dto.DocumentDto;
+import com.archivage.document.dto.DocumentMetadataPatchRequest;
 import com.archivage.document.dto.DocumentMetadataUpdateRequest;
+import com.archivage.document.dto.MetadataSuggestionsDto;
 import com.archivage.document.dto.DocumentStatusUpdateRequest;
 import com.archivage.document.entity.Document;
 import com.archivage.document.entity.DocumentTag;
@@ -19,6 +21,7 @@ import com.archivage.document.policy.DocumentAccessService;
 import com.archivage.document.repository.DocumentRepository;
 import com.archivage.metadata.entity.DocumentTypeEntity;
 import com.archivage.metadata.repository.DocumentTypeRepository;
+import com.archivage.metadata.validation.CustomMetadataValidator;
 import com.archivage.ocr.OcrJobService;
 import com.archivage.search.dto.SearchRequest;
 import com.archivage.user.entity.User;
@@ -39,7 +42,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -55,6 +60,8 @@ public class DocumentService {
     private final UserRepository userRepository;
     private final DocumentAccessService documentAccessService;
     private final AuditLogRepository auditLogRepository;
+    private final CustomMetadataValidator customMetadataValidator;
+    private final MetadataSuggestionService metadataSuggestionService;
 
     private User loadReader(UserPrincipal principal) {
         return userRepository.findWithDepartmentById(principal.getUser().getId())
@@ -69,6 +76,15 @@ public class DocumentService {
         documentAccessService.assertCanRead(reader, doc);
         auditService.log("DOCUMENT_VIEW", reader, "DOCUMENT", id, Map.of());
         return documentMapper.toDto(doc);
+    }
+
+    @Transactional(readOnly = true)
+    public MetadataSuggestionsDto getMetadataSuggestions(Long id, UserPrincipal principal) {
+        User reader = loadReader(principal);
+        Document doc = documentRepository.findDetailById(id)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Document introuvable"));
+        documentAccessService.assertCanRead(reader, doc);
+        return metadataSuggestionService.suggestFromOcrText(doc.getOcrText());
     }
 
     @Transactional(readOnly = true)
@@ -103,6 +119,7 @@ public class DocumentService {
         Document doc = documentRepository.findDetailById(id)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Document introuvable"));
         documentAccessService.assertCanRead(reader, doc);
+        boolean typeChanged = !Objects.equals(doc.getDocumentType().getId(), request.documentTypeId());
         DocumentTypeEntity type = documentTypeRepository.findById(request.documentTypeId())
                 .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, "INVALID_TYPE", "Type documentaire inconnu"));
         doc.setTitle(request.title());
@@ -125,9 +142,62 @@ public class DocumentService {
                 }
             }
         }
+        if (request.customMetadata() != null) {
+            doc.setCustomMetadata(customMetadataValidator.validateAndNormalize(type.getCustomFieldsSchema(), request.customMetadata()));
+        } else if (typeChanged) {
+            doc.setCustomMetadata(customMetadataValidator.validateAndNormalize(type.getCustomFieldsSchema(), Map.of()));
+        }
         documentRepository.save(doc);
         auditService.log("DOCUMENT_UPDATE", principal.getUser(), "DOCUMENT", id, Map.of("fields", "metadata"));
         return documentMapper.toDto(documentRepository.findDetailById(id).orElseThrow());
+    }
+
+    @Transactional
+    public DocumentDto patchMetadata(Long id, DocumentMetadataPatchRequest patch, UserPrincipal principal) {
+        User reader = loadReader(principal);
+        Document doc = documentRepository.findDetailById(id)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Document introuvable"));
+        documentAccessService.assertCanRead(reader, doc);
+        DocumentMetadataUpdateRequest merged = mergeMetadataPatch(doc, patch);
+        return updateMetadata(id, merged, principal);
+    }
+
+    private static DocumentMetadataUpdateRequest mergeMetadataPatch(Document doc, DocumentMetadataPatchRequest patch) {
+        String title = patch.title() != null ? patch.title().trim() : doc.getTitle();
+        if (title.isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_TITLE", "Le titre est obligatoire");
+        }
+        Long documentTypeId = patch.documentTypeId() != null ? patch.documentTypeId() : doc.getDocumentType().getId();
+        String folderNumber = patch.folderNumber() != null ? patch.folderNumber().trim() : doc.getFolderNumber();
+        if (folderNumber.isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_FOLDER", "Le numéro de dossier est obligatoire");
+        }
+        var docDate = patch.documentDate() != null ? patch.documentDate() : doc.getDocumentDate();
+        var language = patch.language() != null ? patch.language() : doc.getLanguage();
+        var conf = patch.confidentialityLevel() != null ? patch.confidentialityLevel() : doc.getConfidentialityLevel();
+        Long departmentId = patch.departmentId() != null ? patch.departmentId()
+                : (doc.getDepartment() != null ? doc.getDepartment().getId() : null);
+        String ext = patch.externalReference() != null ? patch.externalReference() : doc.getExternalReference();
+        String author = patch.author() != null ? patch.author() : doc.getAuthor();
+        String notes = patch.notes() != null ? patch.notes() : doc.getNotes();
+        List<String> tags = patch.tags() != null
+                ? patch.tags()
+                : doc.getTags().stream().map(DocumentTag::getTag).toList();
+        Map<String, Object> custom = patch.customMetadata();
+        return new DocumentMetadataUpdateRequest(
+                title,
+                documentTypeId,
+                folderNumber,
+                docDate,
+                language,
+                conf,
+                departmentId,
+                ext,
+                author,
+                notes,
+                tags,
+                custom
+        );
     }
 
     @Transactional

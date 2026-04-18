@@ -1,6 +1,7 @@
+import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import api from '../api/axiosInstance';
+import { performLogout } from '../auth/performLogout';
 import { useAuthStore } from '../store/authStore';
 import { useEffectiveRole } from '../hooks/useEffectiveRole';
 
@@ -15,19 +16,36 @@ export default function AppLayout({ children }) {
   const canBrowseDocuments = role && role !== 'AUDITEUR';
 
   async function logout() {
-    const refresh = localStorage.getItem('refreshToken');
-    try {
-      if (refresh) {
-        await api.post('/api/auth/logout', { refreshToken: refresh });
-      }
-    } catch {
-      /* ignore */
-    }
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    clear();
-    navigate('/login');
+    await performLogout(clear, navigate);
   }
+
+  const rawIdle = import.meta.env.VITE_IDLE_TIMEOUT_MINUTES;
+  const idleMinutes =
+    rawIdle === undefined || rawIdle === '' ? 30 : Number(rawIdle);
+  const idleMs =
+    Number.isFinite(idleMinutes) && idleMinutes > 0 ? idleMinutes * 60 * 1000 : 0;
+
+  useEffect(() => {
+    if (!idleMs) return undefined;
+    let timer;
+    function arm() {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        performLogout(clear, navigate);
+      }, idleMs);
+    }
+    function onActivity() {
+      if (document.visibilityState === 'hidden') return;
+      arm();
+    }
+    const events = ['mousedown', 'mousemove', 'keydown', 'touchstart', 'scroll', 'wheel', 'visibilitychange'];
+    arm();
+    events.forEach((ev) => window.addEventListener(ev, onActivity, { passive: true }));
+    return () => {
+      clearTimeout(timer);
+      events.forEach((ev) => window.removeEventListener(ev, onActivity));
+    };
+  }, [idleMs, clear, navigate]);
 
   return (
     <div className="min-h-screen flex flex-col">

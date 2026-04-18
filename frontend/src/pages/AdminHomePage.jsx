@@ -45,6 +45,13 @@ export default function AdminHomePage() {
           <h2 className="font-semibold text-brand-dark">{t('admin.navDeletedDocs')}</h2>
           <p className="text-sm text-slate-600 mt-2">{t('admin.navDeletedDocsDesc')}</p>
         </Link>
+        <Link
+          to="/admin/system-settings"
+          className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm hover:border-brand-mid transition-colors"
+        >
+          <h2 className="font-semibold text-brand-dark">{t('admin.navSystemSettings')}</h2>
+          <p className="text-sm text-slate-600 mt-2">{t('admin.navSystemSettingsDesc')}</p>
+        </Link>
       </div>
     </div>
   );
