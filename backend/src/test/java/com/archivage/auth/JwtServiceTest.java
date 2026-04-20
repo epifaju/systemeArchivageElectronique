@@ -41,11 +41,34 @@ class JwtServiceTest {
 
         assertThat(jwtService.extractUsername(token)).isEqualTo("alice");
         assertThat(jwtService.isTokenValid(token, principal)).isTrue();
+        assertThat(jwtService.isTokenExpired(token)).isFalse();
     }
 
     @Test
     void rejectsMalformedToken() {
         assertThatThrownBy(() -> jwtService.parseClaims("not-a-jwt"))
                 .isInstanceOf(JwtValidationException.class);
+    }
+
+    @Test
+    void isTokenValid_falseWhenUserDetailsMismatch() {
+        User alice = User.builder()
+                .username("alice")
+                .passwordHash("x")
+                .role(Role.LECTEUR)
+                .active(true)
+                .build();
+        alice.setId(1L);
+        alice.setUuid(java.util.UUID.randomUUID());
+        User bob = User.builder()
+                .username("bob")
+                .passwordHash("x")
+                .role(Role.LECTEUR)
+                .active(true)
+                .build();
+        bob.setId(2L);
+
+        String token = jwtService.generateAccessToken(new UserPrincipal(alice), 1L, Role.LECTEUR.name());
+        assertThat(jwtService.isTokenValid(token, new UserPrincipal(bob))).isFalse();
     }
 }
