@@ -64,7 +64,10 @@ export default function DocumentViewerPage() {
 
   const [showOcrPdf, setShowOcrPdf] = useState(false);
   /** ArrayBuffer — react-pdf n’accepte pas Uint8Array seul comme `file` (sinon échec silencieux). */
+  /** PDF OCR — react-pdf (pagination / zoom). */
   const [pdfBuffer, setPdfBuffer] = useState(null);
+  /** PDF original — iframe + blob URL (moteur natif ; évite pages blanches avec certains PDF / pdf.js). */
+  const [originalPdfBlobUrl, setOriginalPdfBlobUrl] = useState(null);
   const [imageObjectUrl, setImageObjectUrl] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(true);
   const [previewError, setPreviewError] = useState(null);
@@ -140,6 +143,10 @@ export default function DocumentViewerPage() {
     setPreviewError(null);
     setPdfRenderError(null);
     setPdfBuffer(null);
+    setOriginalPdfBlobUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
     setImageObjectUrl((prev) => {
       if (prev) URL.revokeObjectURL(prev);
       return null;
@@ -158,7 +165,12 @@ export default function DocumentViewerPage() {
             setPreviewError(apiMsg || t('viewer.previewInvalidPdf'));
             return;
           }
-          setPdfBuffer(ab);
+          if (previewPath.includes('/preview/ocr')) {
+            setPdfBuffer(ab.slice(0));
+          } else {
+            const url = URL.createObjectURL(new Blob([ab], { type: 'application/pdf' }));
+            setOriginalPdfBlobUrl(url);
+          }
           return;
         }
 
@@ -192,6 +204,10 @@ export default function DocumentViewerPage() {
     return () => {
       cancelled = true;
       setPdfBuffer(null);
+      setOriginalPdfBlobUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
       setImageObjectUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
         return null;
@@ -257,8 +273,6 @@ export default function DocumentViewerPage() {
     );
   }
 
-  const isPdfView =
-    (showOcrPdf && doc.ocrAvailable) || (!showOcrPdf && doc.mimeType === 'application/pdf');
   const isImage =
     !showOcrPdf &&
     doc.mimeType?.startsWith('image/') &&
@@ -459,7 +473,18 @@ export default function DocumentViewerPage() {
             </div>
           )}
 
-          {!previewLoading && !previewError && pdfBuffer && isPdfView && (
+          {!previewLoading && !previewError && originalPdfBlobUrl && doc.mimeType === 'application/pdf' && !showOcrPdf && (
+            <div className="w-full max-w-full flex flex-col items-center">
+              <iframe
+                title={doc.title || 'PDF'}
+                src={`${originalPdfBlobUrl}#toolbar=1`}
+                className="h-[min(70vh,560px)] w-full max-w-4xl rounded border border-slate-200 bg-white shadow-sm"
+              />
+              <p className="mt-2 text-xs text-slate-500 max-w-xl text-center">{t('upload.previewPdfHint')}</p>
+            </div>
+          )}
+
+          {!previewLoading && !previewError && pdfBuffer && showOcrPdf && doc.ocrAvailable && (
             <div className="w-full max-w-full flex flex-col items-center">
               <div className="flex flex-wrap gap-2 items-center mb-2">
                 <button
