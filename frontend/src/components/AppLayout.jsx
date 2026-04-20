@@ -1,9 +1,16 @@
 import { useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { performLogout } from '../auth/performLogout';
 import { useAuthStore } from '../store/authStore';
 import { useEffectiveRole } from '../hooks/useEffectiveRole';
+
+function navLinkClass({ isActive }) {
+  return [
+    'rounded-md px-2 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-mid focus-visible:ring-offset-2',
+    isActive ? 'text-brand-dark bg-slate-100' : 'text-slate-700 hover:text-brand-mid hover:bg-slate-50',
+  ].join(' ');
+}
 
 export default function AppLayout({ children }) {
   const { t } = useTranslation();
@@ -49,44 +56,74 @@ export default function AppLayout({ children }) {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="border-b border-slate-200 bg-white px-6 py-3 flex items-center justify-between gap-4">
-        <span className="font-medium text-brand-dark">{t('app.title')}</span>
-        <nav className="flex flex-wrap items-center gap-4 text-sm">
-          <Link className="text-slate-700 hover:text-brand-mid" to="/dashboard">
-            {t('nav.dashboard')}
-          </Link>
-          {canBrowseDocuments && (
-            <>
-              <Link className="text-slate-700 hover:text-brand-mid" to="/upload">
-                {t('nav.upload')}
-              </Link>
-              <Link className="text-slate-700 hover:text-brand-mid" to="/search">
-                {t('nav.search')}
-              </Link>
-              <Link className="text-slate-700 hover:text-brand-mid" to="/documents">
-                {t('nav.documents')}
-              </Link>
-            </>
-          )}
-          {isAdmin && (
-            <Link className="text-slate-700 hover:text-brand-mid" to="/admin">
-              {t('nav.admin')}
+      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70">
+        <div className="px-6 py-3 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <Link
+              to="/dashboard"
+              className="font-semibold text-brand-dark truncate hover:text-brand-mid focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-mid focus-visible:ring-offset-2 rounded"
+              title={t('app.title')}
+            >
+              {t('app.title')}
             </Link>
-          )}
-          {canOcrQueue && (
-            <Link className="text-slate-700 hover:text-brand-mid" to="/admin/ocr-queue">
-              {t('nav.ocrQueue')}
-            </Link>
-          )}
-          {canAuditLog && (
-            <Link className="text-slate-700 hover:text-brand-mid" to="/admin/audit">
-              {t('nav.auditLog')}
-            </Link>
-          )}
-          <button type="button" className="text-brand-mid hover:underline" onClick={logout}>
-            {t('auth.logout')}
-          </button>
-        </nav>
+            {role && (
+              <span className="hidden sm:inline-flex text-xs font-medium rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-slate-700">
+                {t(`admin.roles.${role}`)}
+              </span>
+            )}
+          </div>
+
+          <nav className="flex flex-wrap items-center justify-end gap-1 text-sm">
+            <NavLink className={navLinkClass} to="/dashboard">
+              {t('nav.dashboard')}
+            </NavLink>
+
+            {canBrowseDocuments && (
+              <>
+                <div className="mx-1 hidden sm:block h-5 w-px bg-slate-200" aria-hidden="true" />
+                <NavLink className={navLinkClass} to="/upload">
+                  {t('nav.upload')}
+                </NavLink>
+                <NavLink className={navLinkClass} to="/search">
+                  {t('nav.search')}
+                </NavLink>
+                <NavLink className={navLinkClass} to="/documents">
+                  {t('nav.documents')}
+                </NavLink>
+              </>
+            )}
+
+            {(isAdmin || canOcrQueue || canAuditLog) && (
+              <>
+                <div className="mx-1 hidden sm:block h-5 w-px bg-slate-200" aria-hidden="true" />
+                {isAdmin && (
+                  <NavLink className={navLinkClass} to="/admin">
+                    {t('nav.admin')}
+                  </NavLink>
+                )}
+                {canOcrQueue && (
+                  <NavLink className={navLinkClass} to="/admin/ocr-queue">
+                    {t('nav.ocrQueue')}
+                  </NavLink>
+                )}
+                {canAuditLog && (
+                  <NavLink className={navLinkClass} to="/admin/audit">
+                    {t('nav.auditLog')}
+                  </NavLink>
+                )}
+              </>
+            )}
+
+            <div className="mx-1 hidden sm:block h-5 w-px bg-slate-200" aria-hidden="true" />
+            <button
+              type="button"
+              className="rounded-md px-2 py-1 text-slate-600 hover:text-brand-mid hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-mid focus-visible:ring-offset-2"
+              onClick={logout}
+            >
+              {t('auth.logout')}
+            </button>
+          </nav>
+        </div>
       </header>
       <main className="flex-1">{children}</main>
     </div>
