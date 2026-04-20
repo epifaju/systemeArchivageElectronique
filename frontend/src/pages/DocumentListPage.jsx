@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { fetchDocumentTypes, listDocuments } from '../api/documentApi';
 
-const SORTS = ['DATE_DESC', 'DATE_ASC', 'TITLE_ASC'];
+const SORTS = ['DATE_DESC', 'DATE_ASC', 'TITLE_ASC', 'CREATED_DESC', 'CREATED_ASC'];
 const PAGE_SIZES = [20, 50, 100];
 
 function emptyFilters() {

@@ -7,7 +7,7 @@ import { fetchDocumentTypes } from '../api/documentApi';
 import { createSavedSearch, deleteSavedSearch, fetchSavedSearches } from '../api/savedSearchApi';
 import { downloadSearchCsv, searchDocuments } from '../api/searchApi';
 
-const SORTS = ['RELEVANCE', 'DATE_DESC', 'DATE_ASC', 'TITLE_ASC'];
+const SORTS = ['RELEVANCE', 'DATE_DESC', 'DATE_ASC', 'TITLE_ASC', 'CREATED_DESC', 'CREATED_ASC'];
 const PAGE_SIZES = [20, 50, 100];
 const DEFAULT_SORT = 'RELEVANCE';
 

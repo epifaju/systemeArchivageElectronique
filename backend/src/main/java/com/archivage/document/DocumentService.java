@@ -326,6 +326,8 @@ public class DocumentService {
             case DATE_DESC -> Sort.by(Sort.Direction.DESC, "documentDate");
             case TITLE_ASC -> Sort.by(Sort.Direction.ASC, "title");
             case RELEVANCE -> Sort.by(Sort.Direction.DESC, "updatedAt");
+            case CREATED_ASC -> Sort.by(Sort.Direction.ASC, "createdAt");
+            case CREATED_DESC -> Sort.by(Sort.Direction.DESC, "createdAt");
         };
     }
 }

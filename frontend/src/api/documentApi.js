@@ -53,6 +53,12 @@ export async function reprocessDocumentOcr(id) {
   await api.post(`/api/documents/${id}/reprocess-ocr`);
 }
 
+/** Changement de statut (ARCHIVISTE, ADMIN). */
+export async function updateDocumentStatus(id, body) {
+  const { data } = await api.put(`/api/documents/${id}/status`, body);
+  return data;
+}
+
 export async function fetchDocumentTypes() {
   const { data } = await api.get('/api/metadata/document-types');
   return data;

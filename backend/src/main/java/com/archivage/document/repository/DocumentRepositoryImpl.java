@@ -229,6 +229,8 @@ public class DocumentRepositoryImpl implements DocumentRepositoryCustom {
             case DATE_DESC -> " d.document_date DESC ";
             case TITLE_ASC -> " d.title ASC ";
             case RELEVANCE -> " d.updated_at DESC ";
+            case CREATED_ASC -> " d.created_at ASC ";
+            case CREATED_DESC -> " d.created_at DESC ";
         };
     }
 

@@ -13,7 +13,7 @@ function navLinkClass({ isActive }) {
 }
 
 export default function AppLayout({ children }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const clear = useAuthStore((s) => s.clear);
   const role = useEffectiveRole();
@@ -114,6 +114,23 @@ export default function AppLayout({ children }) {
               </>
             )}
 
+            <div className="mx-1 hidden sm:block h-5 w-px bg-slate-200" aria-hidden="true" />
+            <div className="flex items-center gap-1 text-xs text-slate-600" role="group" aria-label={t('app.languageGroup')}>
+              <button
+                type="button"
+                className={`rounded px-1.5 py-0.5 ${i18n.language?.startsWith('fr') ? 'bg-slate-100 font-medium text-brand-dark' : 'hover:bg-slate-50'}`}
+                onClick={() => i18n.changeLanguage('fr')}
+              >
+                FR
+              </button>
+              <button
+                type="button"
+                className={`rounded px-1.5 py-0.5 ${i18n.language?.startsWith('pt') ? 'bg-slate-100 font-medium text-brand-dark' : 'hover:bg-slate-50'}`}
+                onClick={() => i18n.changeLanguage('pt')}
+              >
+                PT
+              </button>
+            </div>
             <div className="mx-1 hidden sm:block h-5 w-px bg-slate-200" aria-hidden="true" />
             <button
               type="button"

@@ -24,7 +24,10 @@ public record SearchRequest(
         RELEVANCE,
         DATE_DESC,
         DATE_ASC,
-        TITLE_ASC
+        TITLE_ASC,
+        /** Date d’ajout / création en base (created_at). */
+        CREATED_DESC,
+        CREATED_ASC
     }
 
     public int pageIndex() {

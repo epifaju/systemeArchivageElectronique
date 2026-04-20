@@ -13,6 +13,7 @@ import {
   reprocessDocumentOcr,
   triggerBlobDownload,
   updateDocumentMetadata,
+  updateDocumentStatus,
   fetchMetadataSuggestions,
 } from '../api/documentApi';
 import CustomMetadataFields, { buildCustomPayload, getSchemaFields } from '../components/CustomMetadataFields.jsx';
@@ -41,6 +42,17 @@ function shouldExpectPdf(doc, previewPath) {
   return doc.mimeType === 'application/pdf';
 }
 
+const DOCUMENT_STATUS_OPTIONS = [
+  'PENDING',
+  'PROCESSING',
+  'OCR_SUCCESS',
+  'OCR_PARTIAL',
+  'OCR_FAILED',
+  'NEEDS_REVIEW',
+  'VALIDATED',
+  'ARCHIVED',
+];
+
 function parseJsonErrorMessage(bytes) {
   try {
     const txt = new TextDecoder().decode(bytes.slice(0, Math.min(bytes.byteLength, 4096)));
@@ -61,10 +73,12 @@ export default function DocumentViewerPage() {
   const canEdit = ['AGENT', 'ARCHIVISTE', 'ADMIN'].includes(role);
   const canReprocess = ['ARCHIVISTE', 'ADMIN'].includes(role);
   const canSoftDelete = ['ARCHIVISTE', 'ADMIN'].includes(role);
+  const canChangeStatus = ['ARCHIVISTE', 'ADMIN'].includes(role);
+
+  const [statusDraft, setStatusDraft] = useState('');
 
   const [showOcrPdf, setShowOcrPdf] = useState(false);
-  /** ArrayBuffer — react-pdf n’accepte pas Uint8Array seul comme `file` (sinon échec silencieux). */
-  /** PDF OCR — react-pdf (pagination / zoom). */
+  /** PDF OCR — react-pdf (ArrayBuffer ; pas Uint8Array seul). */
   const [pdfBuffer, setPdfBuffer] = useState(null);
   /** PDF original — iframe + blob URL (moteur natif ; évite pages blanches avec certains PDF / pdf.js). */
   const [originalPdfBlobUrl, setOriginalPdfBlobUrl] = useState(null);
@@ -245,6 +259,21 @@ export default function DocumentViewerPage() {
       navigate('/documents');
     },
   });
+
+  const statusMutation = useMutation({
+    mutationFn: (status) => updateDocumentStatus(docId, { status }),
+    onSuccess: (d) => {
+      qc.setQueryData(['document', docId], d);
+      qc.invalidateQueries({ queryKey: ['document-history', docId] });
+      qc.invalidateQueries({ queryKey: ['documents'] });
+      qc.invalidateQueries({ queryKey: ['search'] });
+      qc.invalidateQueries({ queryKey: ['home-dashboard'] });
+    },
+  });
+
+  useEffect(() => {
+    if (doc?.status) setStatusDraft(doc.status);
+  }, [doc?.id, doc?.status]);
 
   const downloadOriginal = useCallback(async () => {
     const blob = await fetchPreviewBlob(`/api/documents/${docId}/download/original`);
@@ -584,7 +613,44 @@ export default function DocumentViewerPage() {
                   label={t('upload.field.confidentiality')}
                   value={t(`enums.confidentiality.${doc.confidentialityLevel}`)}
                 />
-                <Row label={t('viewer.status')} value={doc.status} />
+                {canChangeStatus && !editing ? (
+                  <div className="sm:col-span-2 pt-1">
+                    <dt className="text-slate-500">{t('viewer.status')}</dt>
+                    <dd className="mt-1 space-y-2">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <select
+                          className="w-full max-w-xs rounded border border-slate-300 px-2 py-1.5 text-sm text-slate-900"
+                          value={statusDraft}
+                          onChange={(e) => setStatusDraft(e.target.value)}
+                          disabled={statusMutation.isPending}
+                        >
+                          {DOCUMENT_STATUS_OPTIONS.map((s) => (
+                            <option key={s} value={s}>
+                              {t(`enums.documentStatus.${s}`)}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          disabled={statusMutation.isPending || statusDraft === doc.status}
+                          className="rounded border border-brand-mid bg-white px-3 py-1.5 text-sm text-brand-mid hover:bg-slate-50 disabled:opacity-50 shrink-0"
+                          onClick={() => statusMutation.mutate(statusDraft)}
+                        >
+                          {t('viewer.applyStatus')}
+                        </button>
+                      </div>
+                      {statusMutation.isError && (
+                        <p className="text-xs text-red-600">
+                          {statusMutation.error?.response?.data?.message ||
+                            statusMutation.error?.message ||
+                            t('viewer.statusChangeError')}
+                        </p>
+                      )}
+                    </dd>
+                  </div>
+                ) : (
+                  <Row label={t('viewer.status')} value={t(`enums.documentStatus.${doc.status}`)} />
+                )}
                 <Row label={t('viewer.mime')} value={doc.mimeType} />
                 <Row label={t('viewer.sha')} value={doc.sha256} mono />
                 {doc.externalReference && (
