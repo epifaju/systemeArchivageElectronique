@@ -402,5 +402,6 @@
   "auditLog.filter.apply": "Filtrar",
   "auditLog.filter.reset": "Repor",
   "auditLog.filter.today": "Hoje",
-  "auditLog.filter.dateHint": "As datas « De » e « Até » cobrem dias inteiros no fuso do navegador: {{tz}} (as horas na tabela usam a sua região)."
+  "auditLog.filter.dateHint": "As datas « De » e « Até » cobrem dias inteiros no fuso do navegador: {{tz}} (as horas na tabela usam a sua região).",
+  "viewer.createdAt": "Data de registo"
 }

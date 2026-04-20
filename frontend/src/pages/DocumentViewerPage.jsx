@@ -63,6 +63,16 @@ function parseJsonErrorMessage(bytes) {
   }
 }
 
+function formatInstant(isoOrInstant, locale) {
+  if (!isoOrInstant) return '—';
+  try {
+    const d = new Date(isoOrInstant);
+    return new Intl.DateTimeFormat(locale || undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(d);
+  } catch {
+    return String(isoOrInstant);
+  }
+}
+
 export default function DocumentViewerPage() {
   const { id } = useParams();
   const docId = Number(id);
@@ -94,6 +104,7 @@ export default function DocumentViewerPage() {
   const [imgError, setImgError] = useState(false);
   const [historyPage, setHistoryPage] = useState(0);
   const [historyIncludeViews, setHistoryIncludeViews] = useState(false);
+  const locale = i18n.language?.startsWith('pt') ? 'pt-PT' : 'fr-FR';
 
   const { data: doc, isLoading, isError, error } = useQuery({
     queryKey: ['document', docId],
@@ -608,6 +619,7 @@ export default function DocumentViewerPage() {
                 <Row label={t('upload.field.type')} value={typeLabel || doc.documentTypeCode} />
                 <Row label={t('upload.field.folder')} value={doc.folderNumber} />
                 <Row label={t('upload.field.date')} value={doc.documentDate} />
+                <Row label={t('viewer.createdAt')} value={formatInstant(doc.createdAt, locale)} />
                 <Row label={t('upload.field.language')} value={t(`enums.language.${doc.language}`)} />
                 <Row
                   label={t('upload.field.confidentiality')}

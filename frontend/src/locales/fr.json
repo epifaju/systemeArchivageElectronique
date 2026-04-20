@@ -402,5 +402,6 @@
   "auditLog.filter.apply": "Filtrer",
   "auditLog.filter.reset": "Réinitialiser",
   "auditLog.filter.today": "Aujourd’hui",
-  "auditLog.filter.dateHint": "Les dates « Du » et « Au » couvrent des journées entières selon le fuseau du navigateur : {{tz}} (les horodatages du tableau restent affichés dans votre locale)."
+  "auditLog.filter.dateHint": "Les dates « Du » et « Au » couvrent des journées entières selon le fuseau du navigateur : {{tz}} (les horodatages du tableau restent affichés dans votre locale).",
+  "viewer.createdAt": "Date d’ajout"
 }
