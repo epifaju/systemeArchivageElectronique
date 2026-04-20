@@ -56,7 +56,8 @@ public class SystemSettingsService {
                 ocrProperties.langDefault(),
                 ocrProperties.timeoutMinutes(),
                 ocrProperties.maxRetries(),
-                ocrProperties.mock()
+                ocrProperties.mock(),
+                ocrProperties.imagemagickPreprocessEnabled()
         );
         var storage = new SystemSettingsDto.StorageSettingsDto(storageProperties.rootPath());
         var clamav = new SystemSettingsDto.ClamavSettingsDto(

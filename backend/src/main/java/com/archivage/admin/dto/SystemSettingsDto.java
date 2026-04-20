@@ -26,7 +26,8 @@ public record SystemSettingsDto(
             String langDefault,
             int timeoutMinutes,
             int maxRetries,
-            boolean mock
+            boolean mock,
+            boolean imagemagickPreprocessEnabled
     ) {}
 
     public record StorageSettingsDto(String rootPath) {}

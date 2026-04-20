@@ -116,6 +116,13 @@ public class AdminController {
         return adminService.ocrQueue(page, size);
     }
 
+    @PostMapping("/ocr-queue/{jobId}/cancel")
+    @PreAuthorize("hasAnyRole('ADMIN','ARCHIVISTE')")
+    public ResponseEntity<Void> cancelOcrJob(@PathVariable Long jobId) {
+        adminService.cancelPendingOcrJob(jobId);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/documents/deleted")
     @PreAuthorize("hasRole('ADMIN')")
     public PageResponseDto<DocumentDto> listDeletedDocuments(

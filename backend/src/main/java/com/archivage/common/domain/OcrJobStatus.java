@@ -6,5 +6,7 @@ public enum OcrJobStatus {
     OCR_SUCCESS,
     OCR_PARTIAL,
     OCR_FAILED,
-    NEEDS_REVIEW
+    NEEDS_REVIEW,
+    /** Annulé avant traitement (file uniquement). */
+    CANCELLED
 }

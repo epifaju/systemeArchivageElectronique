@@ -45,6 +45,7 @@ services:
       STORAGE_PATH: /app/documents
       OCR_WORKERS: ${OCR_WORKERS:-2}
       OCR_MOCK: "false"
+      OCR_IMAGEMAGICK_PREPROCESS_ENABLED: ${OCR_IMAGEMAGICK_PREPROCESS_ENABLED:-false}
       CLAMAV_ENABLED: ${CLAMAV_ENABLED:-true}
       CLAMAV_HOST: clamav
       CLAMAV_PORT: "3310"

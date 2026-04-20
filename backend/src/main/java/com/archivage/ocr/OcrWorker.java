@@ -90,7 +90,16 @@ public class OcrWorker {
 
     @Transactional
     public void process(Long jobId) throws Exception {
-        OcrJob job = ocrJobRepository.findById(jobId).orElseThrow();
+        OcrJob job = ocrJobRepository.findByIdForUpdate(jobId).orElseThrow();
+        if (job.getStatus() == OcrJobStatus.CANCELLED) {
+            log.info("Job OCR {} annulé — aucun traitement", jobId);
+            return;
+        }
+        if (job.getStatus() != OcrJobStatus.PENDING) {
+            log.warn("Job OCR {} statut {} (attendu PENDING) — abandon", jobId, job.getStatus());
+            return;
+        }
+
         Document document = documentRepository.findActiveById(job.getDocument().getId()).orElseThrow();
 
         job.setStatus(OcrJobStatus.PROCESSING);
@@ -111,15 +120,35 @@ public class OcrWorker {
 
         Path output = input.getParent().resolve("ocr-" + document.getUuid() + ".pdf");
 
-        String logOutput;
-        if (ocrProperties.mock()) {
-            Files.copy(input, output, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-            logOutput = "OCR mock: copie du PDF sans ocrmypdf";
-        } else {
-            logOutput = runOcrmypdf(input, output, job.getOcrLang());
-        }
+        Path magickTemp = null;
+        Path effectiveInput = input;
+        try {
+            if (!ocrProperties.mock()) {
+                Path pre = maybeImagemagickPreprocess(document, input);
+                if (pre != null && !pre.equals(input)) {
+                    magickTemp = pre;
+                    effectiveInput = pre;
+                }
+            }
 
-        job.setLogOutput(logOutput);
+            String logOutput;
+            if (ocrProperties.mock()) {
+                Files.copy(input, output, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                logOutput = "OCR mock: copie du PDF sans ocrmypdf";
+            } else {
+                logOutput = runOcrmypdf(effectiveInput, output, job.getOcrLang());
+            }
+
+            job.setLogOutput(logOutput);
+        } finally {
+            if (magickTemp != null) {
+                try {
+                    Files.deleteIfExists(magickTemp);
+                } catch (IOException ex) {
+                    log.warn("Suppression fichier prétraitement {} : {}", magickTemp, ex.getMessage());
+                }
+            }
+        }
 
         String text;
         int pages;
@@ -191,6 +220,62 @@ public class OcrWorker {
         document.setStatus(DocumentStatus.OCR_FAILED);
         ocrJobRepository.save(job);
         documentRepository.save(document);
+    }
+
+    /** PDF : laisser ocrmypdf ; option ImageMagick limitée aux images raster (Phase C). */
+    private Path maybeImagemagickPreprocess(Document document, Path input) {
+        if (!ocrProperties.imagemagickPreprocessEnabled() || !isRasterImage(document)) {
+            return input;
+        }
+        Path tmp = input.getParent().resolve("magick-pre-" + document.getUuid() + ".png");
+        try {
+            if (runMagickRasterPipeline(input, tmp)) {
+                log.info("Prétraitement ImageMagick appliqué (document {})", document.getId());
+                return tmp;
+            }
+        } catch (Exception e) {
+            log.warn("Prétraitement ImageMagick ignoré: {}", e.getMessage());
+        }
+        try {
+            Files.deleteIfExists(tmp);
+        } catch (IOException ignored) {
+            // ignore
+        }
+        return input;
+    }
+
+    private static boolean isRasterImage(Document d) {
+        String m = d.getMimeType();
+        if (m == null) {
+            return false;
+        }
+        String lower = m.toLowerCase();
+        return lower.startsWith("image/") && !lower.contains("svg");
+    }
+
+    private boolean runMagickRasterPipeline(Path in, Path out) throws IOException, InterruptedException {
+        String inAbs = in.toAbsolutePath().toString();
+        String outAbs = out.toAbsolutePath().toString();
+        List<List<String>> attempts = List.of(
+                List.of("magick", inAbs, "-auto-orient", "-deskew", "40%", "-normalize", "PNG:" + outAbs),
+                List.of("convert", inAbs, "-auto-orient", "-deskew", "40%", "-normalize", outAbs)
+        );
+        for (List<String> cmd : attempts) {
+            ProcessBuilder pb = new ProcessBuilder(cmd);
+            pb.redirectErrorStream(true);
+            Process p = pb.start();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream(), StandardCharsets.UTF_8))) {
+                while (reader.readLine() != null) {
+                    // drain
+                }
+            }
+            boolean finished = p.waitFor(5, TimeUnit.MINUTES);
+            if (finished && p.exitValue() == 0 && Files.exists(out) && Files.size(out) > 0) {
+                return true;
+            }
+            Files.deleteIfExists(out);
+        }
+        return false;
     }
 
     private String runOcrmypdf(Path input, Path output, String lang) throws IOException, InterruptedException {

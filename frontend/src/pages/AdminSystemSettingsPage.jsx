@@ -96,6 +96,9 @@ export default function AdminSystemSettingsPage() {
         <Row label={t('admin.systemSettings.field.ocrTimeoutMinutes')}>{fmt(ocr.timeoutMinutes)}</Row>
         <Row label={t('admin.systemSettings.field.ocrMaxRetries')}>{fmt(ocr.maxRetries)}</Row>
         <Row label={t('admin.systemSettings.field.ocrMock')}>{fmtBool(ocr.mock, t)}</Row>
+        <Row label={t('admin.systemSettings.field.ocrImagemagickPreprocess')}>
+          {fmtBool(ocr.imagemagickPreprocessEnabled, t)}
+        </Row>
       </Section>
 
       <Section title={t('admin.systemSettings.section.storage')}>

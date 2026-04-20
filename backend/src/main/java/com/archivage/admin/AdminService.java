@@ -36,6 +36,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.DateTimeException;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Collections;
@@ -157,8 +158,26 @@ public class AdminService {
         return new OcrQueueStatsDto(
                 ocrJobRepository.countByStatus(OcrJobStatus.PENDING),
                 ocrJobRepository.countByStatus(OcrJobStatus.PROCESSING),
-                ocrJobRepository.countByStatus(OcrJobStatus.OCR_FAILED)
+                ocrJobRepository.countByStatus(OcrJobStatus.OCR_FAILED),
+                ocrJobRepository.countByStatus(OcrJobStatus.CANCELLED)
         );
+    }
+
+    /**
+     * Annule un job encore en file (PENDING). Verrou pessimiste aligné avec {@link com.archivage.ocr.OcrWorker}.
+     */
+    @Transactional
+    public void cancelPendingOcrJob(Long jobId) {
+        OcrJob job = ocrJobRepository.findByIdForUpdate(jobId)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Job OCR introuvable"));
+        if (job.getStatus() != OcrJobStatus.PENDING) {
+            throw new ApiException(HttpStatus.CONFLICT, "OCR_JOB_NOT_CANCELLABLE",
+                    "Seuls les jobs en attente (PENDING) peuvent être annulés");
+        }
+        job.setStatus(OcrJobStatus.CANCELLED);
+        job.setCompletedAt(Instant.now());
+        job.setErrorMessage(null);
+        ocrJobRepository.save(job);
     }
 
     @Transactional(readOnly = true)

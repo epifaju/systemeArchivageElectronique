@@ -11,6 +11,7 @@ FROM eclipse-temurin:21-jre-jammy
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr tesseract-ocr-fra tesseract-ocr-por \
     ghostscript qpdf python3 python3-pip \
+    imagemagick \
     curl \
     && pip3 install --no-cache-dir ocrmypdf \
     && rm -rf /var/lib/apt/lists/*

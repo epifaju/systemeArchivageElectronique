@@ -40,6 +40,7 @@ public class OcrJobService {
         long pending = ocrJobRepository.countByStatus(OcrJobStatus.PENDING);
         long processing = ocrJobRepository.countByStatus(OcrJobStatus.PROCESSING);
         long failed = ocrJobRepository.countByStatus(OcrJobStatus.OCR_FAILED);
-        return new OcrQueueStatsDto(pending, processing, failed);
+        long cancelled = ocrJobRepository.countByStatus(OcrJobStatus.CANCELLED);
+        return new OcrQueueStatsDto(pending, processing, failed, cancelled);
     }
 }

@@ -177,6 +177,9 @@ export default function DashboardPage() {
                   <span className="rounded bg-red-50 px-2 py-1 text-red-900">
                     {t('dashboard.ocrFailed')}: {formatInt(data.ocrQueue.failed, locale)}
                   </span>
+                  <span className="rounded bg-slate-100 px-2 py-1 text-slate-800">
+                    {t('dashboard.ocrCancelled')}: {formatInt(data.ocrQueue.cancelled ?? 0, locale)}
+                  </span>
                 </div>
                 {showOcrQueueLink && (
                   <Link

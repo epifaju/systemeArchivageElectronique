@@ -1,8 +1,8 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { getOcrQueueStats, listOcrQueue } from '../api/adminApi';
+import { cancelOcrJob, getOcrQueueStats, listOcrQueue } from '../api/adminApi';
 import { useEffectiveRole } from '../hooks/useEffectiveRole';
 
 function formatInstant(value, locale) {
@@ -23,6 +23,16 @@ export default function AdminOcrQueuePage() {
   const backLabel = role === 'ADMIN' ? t('admin.backHub') : t('nav.dashboard');
 
   const [page, setPage] = useState(0);
+  const queryClient = useQueryClient();
+
+  const cancelMutation = useMutation({
+    mutationFn: cancelOcrJob,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-ocr-queue-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-ocr-queue'] });
+      queryClient.invalidateQueries({ queryKey: ['home-dashboard'] });
+    },
+  });
 
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['admin-ocr-queue-stats'],
@@ -47,7 +57,7 @@ export default function AdminOcrQueuePage() {
       <h1 className="text-2xl font-semibold text-brand-dark mt-2 mb-2">{t('ocrQueue.title')}</h1>
       <p className="text-slate-600 mb-6">{t('ocrQueue.subtitle')}</p>
 
-      <div className="grid gap-4 sm:grid-cols-3 mb-8">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         <StatCard
           label={t('ocrQueue.stat.pending')}
           value={statsLoading ? '…' : stats?.pending ?? '—'}
@@ -62,6 +72,11 @@ export default function AdminOcrQueuePage() {
           label={t('ocrQueue.stat.failed')}
           value={statsLoading ? '…' : stats?.failed ?? '—'}
           tone="red"
+        />
+        <StatCard
+          label={t('ocrQueue.stat.cancelled')}
+          value={statsLoading ? '…' : stats?.cancelled ?? '—'}
+          tone="slate"
         />
       </div>
 
@@ -87,6 +102,7 @@ export default function AdminOcrQueuePage() {
                   <th className="p-2">{t('ocrQueue.col.completed')}</th>
                   <th className="p-2">{t('ocrQueue.col.retries')}</th>
                   <th className="p-2 min-w-[180px]">{t('ocrQueue.col.error')}</th>
+                  <th className="p-2 w-[120px]">{t('ocrQueue.col.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -116,11 +132,29 @@ export default function AdminOcrQueuePage() {
                     <td className="p-2 text-xs text-slate-600 max-w-xs truncate" title={job.errorMessage || ''}>
                       {job.errorMessage || '—'}
                     </td>
+                    <td className="p-2">
+                      {job.status === 'PENDING' ? (
+                        <button
+                          type="button"
+                          disabled={cancelMutation.isPending}
+                          className="text-xs rounded border border-slate-300 px-2 py-1 text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                          onClick={() => {
+                            if (window.confirm(t('ocrQueue.cancelConfirm'))) {
+                              cancelMutation.mutate(job.id);
+                            }
+                          }}
+                        >
+                          {t('ocrQueue.cancel')}
+                        </button>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
                   </tr>
                 ))}
                 {!content.length && (
                   <tr>
-                    <td colSpan={7} className="p-6 text-center text-slate-500">
+                    <td colSpan={8} className="p-6 text-center text-slate-500">
                       {t('ocrQueue.empty')}
                     </td>
                   </tr>
@@ -164,13 +198,17 @@ function StatCard({ label, value, tone }) {
       ? 'border-amber-200 bg-amber-50'
       : tone === 'blue'
         ? 'border-blue-200 bg-blue-50'
-        : 'border-red-200 bg-red-50';
+        : tone === 'slate'
+          ? 'border-slate-200 bg-slate-50'
+          : 'border-red-200 bg-red-50';
   const text =
     tone === 'amber'
       ? 'text-amber-950'
       : tone === 'blue'
         ? 'text-blue-950'
-        : 'text-red-950';
+        : tone === 'slate'
+          ? 'text-slate-900'
+          : 'text-red-950';
 
   return (
     <div className={`rounded-lg border p-4 ${border}`}>

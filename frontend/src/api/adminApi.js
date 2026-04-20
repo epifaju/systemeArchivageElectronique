@@ -35,6 +35,10 @@ export async function listOcrQueue(page = 0, size = 20) {
   return data;
 }
 
+export async function cancelOcrJob(jobId) {
+  await api.post(`/api/admin/ocr-queue/${jobId}/cancel`);
+}
+
 export async function listDeletedDocuments(page = 0, size = 20) {
   const { data } = await api.get('/api/admin/documents/deleted', { params: { page, size } });
   return data;
